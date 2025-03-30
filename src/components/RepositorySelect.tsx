@@ -37,10 +37,11 @@ export function RepositorySelect({ onSelectRepository }: RepositorySelectProps) 
       try {
         setLoading(true);
         const repos = await fetchRepositories(accessToken);
-        setRepositories(repos);
+        setRepositories(repos || []);
       } catch (error) {
         console.error('Failed to fetch repositories:', error);
         toast.error('Failed to load repositories');
+        setRepositories([]);
       } finally {
         setLoading(false);
       }
@@ -83,21 +84,27 @@ export function RepositorySelect({ onSelectRepository }: RepositorySelectProps) 
                 No repository found.
               </CommandEmpty>
               <CommandGroup>
-                {repositories.map((repo) => (
-                  <CommandItem
-                    key={repo.repoName}
-                    onSelect={() => handleSelectRepository(repo)}
-                    className="cursor-pointer"
-                  >
-                    <CheckIcon
-                      className={cn(
-                        "mr-2 h-4 w-4",
-                        selectedRepo?.repoName === repo.repoName ? "opacity-100" : "opacity-0"
-                      )}
-                    />
-                    {repo.repoName}
-                  </CommandItem>
-                ))}
+                {Array.isArray(repositories) && repositories.length > 0 ? (
+                  repositories.map((repo) => (
+                    <CommandItem
+                      key={repo.repoName}
+                      onSelect={() => handleSelectRepository(repo)}
+                      className="cursor-pointer"
+                    >
+                      <CheckIcon
+                        className={cn(
+                          "mr-2 h-4 w-4",
+                          selectedRepo?.repoName === repo.repoName ? "opacity-100" : "opacity-0"
+                        )}
+                      />
+                      {repo.repoName}
+                    </CommandItem>
+                  ))
+                ) : (
+                  <div className="py-6 text-center text-sm text-muted-foreground">
+                    No repositories available.
+                  </div>
+                )}
               </CommandGroup>
             </>
           )}
