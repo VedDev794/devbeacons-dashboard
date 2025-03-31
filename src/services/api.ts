@@ -20,6 +20,7 @@ export interface WorkflowStats {
 export interface LogEntry {
   message: string;
   type?: 'info' | 'success' | 'warning' | 'error';
+  category?: string;
 }
 
 export interface LogFile {
@@ -106,22 +107,34 @@ export async function fetchWorkflowLogs(
         
         Object.keys(jobLogs).forEach(fileName => {
           const fileData = jobLogs[fileName];
+          const entries: LogEntry[] = [];
           
-          if (fileData.SingleLogs) {
-            const entries: LogEntry[] = fileData.SingleLogs.map((log: string) => {
-              // Detect log type based on content
-              let type: LogEntry['type'] = 'info';
-              if (log.includes('success') || log.includes('completed')) {
-                type = 'success';
-              } else if (log.includes('warning') || log.includes('waiting')) {
-                type = 'warning';
-              } else if (log.includes('error') || log.includes('failed')) {
-                type = 'error';
-              }
-              
-              return { message: log, type };
-            });
-            
+          // Process all log categories (not just SingleLogs)
+          Object.keys(fileData).forEach(category => {
+            // Check if this is an array of logs
+            if (Array.isArray(fileData[category])) {
+              // Process each log message
+              fileData[category].forEach((log: string) => {
+                // Detect log type based on content
+                let type: LogEntry['type'] = 'info';
+                if (log.includes('success') || log.includes('completed')) {
+                  type = 'success';
+                } else if (log.includes('warning') || log.includes('waiting')) {
+                  type = 'warning';
+                } else if (log.includes('error') || log.includes('failed')) {
+                  type = 'error';
+                }
+                
+                entries.push({ 
+                  message: log,
+                  type,
+                  category: category === 'SingleLogs' ? undefined : category
+                });
+              });
+            }
+          });
+          
+          if (entries.length > 0) {
             logFiles.push({
               name: `${jobName}/${fileName}`,
               logs: entries

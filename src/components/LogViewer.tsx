@@ -13,6 +13,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 
 interface LogViewerProps {
   repoName: string;
@@ -114,6 +120,25 @@ export function LogViewer({ repoName, workflowId, workflowTitle }: LogViewerProp
   // Find the active log file
   const currentLogFile = logFiles.find(file => file.name === activeFile);
 
+  // Group logs by category
+  const logsByCategory: Record<string, LogEntry[]> = {};
+  if (currentLogFile) {
+    currentLogFile.logs.forEach(log => {
+      const category = log.category || 'General';
+      if (!logsByCategory[category]) {
+        logsByCategory[category] = [];
+      }
+      logsByCategory[category].push(log);
+    });
+  }
+
+  // Extract categories and ensure "General" (SingleLogs) comes first
+  const categories = Object.keys(logsByCategory).sort((a, b) => {
+    if (a === 'General') return -1;
+    if (b === 'General') return 1;
+    return a.localeCompare(b);
+  });
+
   return (
     <div className="flex-1 flex flex-col p-4">
       <div className="flex justify-between items-center mb-4">
@@ -141,16 +166,27 @@ export function LogViewer({ repoName, workflowId, workflowTitle }: LogViewerProp
         
       <div className="bg-devbeacons-darker border border-sidebar-border rounded-md p-4 overflow-auto h-[calc(100vh-240px)]">
         {currentLogFile && (
-          <pre className="text-sm font-mono">
-            {currentLogFile.logs.map((log, index) => (
-              <div 
-                key={index} 
-                className={`log-line ${log.type ? `log-line-${log.type}` : ''}`}
-              >
-                {log.message}
-              </div>
-            ))}
-          </pre>
+          <div className="text-sm font-mono">
+            <Accordion type="single" collapsible className="w-full">
+              {categories.map((category) => (
+                <AccordionItem key={category} value={category} className="border-b border-sidebar-border">
+                  <AccordionTrigger className="py-2 text-sm hover:no-underline hover:bg-sidebar-border/20 px-2">
+                    {category}
+                  </AccordionTrigger>
+                  <AccordionContent>
+                    {logsByCategory[category].map((log, index) => (
+                      <div 
+                        key={index}
+                        className={`log-line p-1 ${log.type ? `log-line-${log.type}` : ''}`}
+                      >
+                        {log.message}
+                      </div>
+                    ))}
+                  </AccordionContent>
+                </AccordionItem>
+              ))}
+            </Accordion>
+          </div>
         )}
       </div>
     </div>
