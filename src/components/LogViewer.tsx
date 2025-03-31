@@ -1,12 +1,18 @@
 
 import React, { useState, useEffect } from 'react';
-import { AlertCircle, Download, RefreshCw } from 'lucide-react';
+import { AlertCircle, Download, RefreshCw, ChevronDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/contexts/AuthContext';
 import { LogFile, fetchWorkflowLogs } from '@/services/api';
 import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from 'sonner';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 
 interface LogViewerProps {
   repoName: string;
@@ -16,7 +22,7 @@ interface LogViewerProps {
 
 export function LogViewer({ repoName, workflowId, workflowTitle }: LogViewerProps) {
   const [logFiles, setLogFiles] = useState<LogFile[]>([]);
-  const [activeTab, setActiveTab] = useState<string>('');
+  const [activeFile, setActiveFile] = useState<string>('');
   const [loading, setLoading] = useState(true);
   const { accessToken, ownerName } = useAuth();
 
@@ -34,9 +40,9 @@ export function LogViewer({ repoName, workflowId, workflowTitle }: LogViewerProp
       const logs = await fetchWorkflowLogs(accessToken, ownerName, repoName, workflowId);
       setLogFiles(logs);
       
-      // Set the first tab as active if logs are available
+      // Set the first file as active if logs are available
       if (logs.length > 0) {
-        setActiveTab(logs[0].name);
+        setActiveFile(logs[0].name);
       }
     } catch (error) {
       console.error('Failed to fetch logs:', error);
@@ -50,24 +56,28 @@ export function LogViewer({ repoName, workflowId, workflowTitle }: LogViewerProp
     if (logFiles.length === 0) return;
     
     // Find the active log file
-    const activeFile = logFiles.find(file => file.name === activeTab);
-    if (!activeFile) return;
+    const currentFile = logFiles.find(file => file.name === activeFile);
+    if (!currentFile) return;
     
     // Create text content
-    const content = activeFile.logs.map(log => log.message).join('\n');
+    const content = currentFile.logs.map(log => log.message).join('\n');
     
     // Create blob and trigger download
     const blob = new Blob([content], { type: 'text/plain' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `${repoName}-${workflowTitle}-${activeTab.replace('/', '-')}.txt`;
+    a.download = `${repoName}-${workflowTitle}-${activeFile.replace('/', '-')}.txt`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
     
     toast.success('Logs downloaded successfully');
+  };
+
+  const handleFileChange = (value: string) => {
+    setActiveFile(value);
   };
 
   if (loading) {
@@ -101,6 +111,9 @@ export function LogViewer({ repoName, workflowId, workflowTitle }: LogViewerProp
     );
   }
 
+  // Find the active log file
+  const currentLogFile = logFiles.find(file => file.name === activeFile);
+
   return (
     <div className="flex-1 flex flex-col p-4">
       <div className="flex justify-between items-center mb-4">
@@ -111,32 +124,35 @@ export function LogViewer({ repoName, workflowId, workflowTitle }: LogViewerProp
         </Button>
       </div>
       
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col">
-        <TabsList className="bg-devbeacons-darker border border-sidebar-border">
-          {logFiles.map((file) => (
-            <TabsTrigger key={file.name} value={file.name} className="text-xs">
-              {file.name}
-            </TabsTrigger>
-          ))}
-        </TabsList>
+      <div className="mb-4 w-full max-w-xs">
+        <Select value={activeFile} onValueChange={handleFileChange}>
+          <SelectTrigger className="w-full bg-devbeacons-darker border-sidebar-border">
+            <SelectValue placeholder="Select a file" />
+          </SelectTrigger>
+          <SelectContent className="bg-devbeacons-darker border-sidebar-border">
+            {logFiles.map((file) => (
+              <SelectItem key={file.name} value={file.name} className="text-xs">
+                {file.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
         
-        {logFiles.map((file) => (
-          <TabsContent key={file.name} value={file.name} className="flex-1 mt-4">
-            <div className="bg-devbeacons-darker border border-sidebar-border rounded-md p-4 overflow-auto h-[calc(100vh-240px)]">
-              <pre className="text-sm font-mono">
-                {file.logs.map((log, index) => (
-                  <div 
-                    key={index} 
-                    className={`log-line ${log.type ? `log-line-${log.type}` : ''}`}
-                  >
-                    {log.message}
-                  </div>
-                ))}
-              </pre>
-            </div>
-          </TabsContent>
-        ))}
-      </Tabs>
+      <div className="bg-devbeacons-darker border border-sidebar-border rounded-md p-4 overflow-auto h-[calc(100vh-240px)]">
+        {currentLogFile && (
+          <pre className="text-sm font-mono">
+            {currentLogFile.logs.map((log, index) => (
+              <div 
+                key={index} 
+                className={`log-line ${log.type ? `log-line-${log.type}` : ''}`}
+              >
+                {log.message}
+              </div>
+            ))}
+          </pre>
+        )}
+      </div>
     </div>
   );
 }
